@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Print Queue</title>
+<style>
+  :root {
+    --bg: #15171a; --panel: #1d2024; --panel2: #24282d; --line: #31363c;
+    --text: #e7e5e0; --dim: #9a9da2;
+    --accent: #ff8a3d; --green: #5fc48a; --blue: #6aa8ff; --red: #ef6461;
+    --radius: 10px;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-size: 15px; }
+  header { display: flex; align-items: baseline; gap: 12px; padding: 22px 24px 8px; max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: .3px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--dim); font-size: 13px; }
+  main { max-width: 980px; margin: 0 auto; padding: 8px 24px 60px; display: grid; gap: 22px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--dim); margin: 0 0 10px; font-weight: 600; }
+
+  /* add panel */
+  .add { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .add { grid-template-columns: 1fr; } }
+  .drop { border: 2px dashed var(--line); border-radius: var(--radius); padding: 22px; text-align: center;
+          color: var(--dim); cursor: pointer; transition: .15s; background: var(--panel); display: flex;
+          flex-direction: column; justify-content: center; min-height: 140px; }
+  .drop.over, .drop:hover { border-color: var(--accent); color: var(--text); }
+  .drop strong { color: var(--text); display: block; font-size: 16px; margin-bottom: 4px; }
+  .idea { background: var(--panel); border-radius: var(--radius); padding: 14px; display: grid; gap: 8px; }
+  input, textarea, select { width: 100%; background: var(--panel2); border: 1px solid var(--line); color: var(--text);
+          border-radius: 7px; padding: 9px 10px; font: inherit; }
+  textarea { resize: vertical; min-height: 54px; }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  button { font: inherit; border: 1px solid var(--line); background: var(--panel2); color: var(--text);
+           border-radius: 7px; padding: 7px 12px; cursor: pointer; }
+  button:hover { border-color: var(--dim); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #1a1208; font-weight: 600; }
+  .progress { height: 4px; background: var(--panel2); border-radius: 2px; overflow: hidden; display: none; margin-top: 10px; }
+  .progress div { height: 100%; width: 0; background: var(--accent); transition: width .1s; }
+
+  /* items */
+  .list { display: grid; gap: 10px; }
+  .item { background: var(--panel); border: 1px solid transparent; border-radius: var(--radius); padding: 12px;
+          display: grid; grid-template-columns: auto 96px 1fr auto; gap: 14px; align-items: center; }
+  .item.dragging { opacity: .4; }
+  .item.drop-before { border-top-color: var(--accent); }
+  .item.printing { border-color: var(--green); grid-template-columns: 160px 1fr auto; }
+  .handle { cursor: grab; color: var(--dim); user-select: none; font-size: 18px; padding: 0 2px; }
+  .pos { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12px; text-align: center; }
+  .thumb { width: 96px; height: 96px; border-radius: 8px; background: var(--panel2); display: grid; place-items: center;
+           color: var(--dim); font-size: 28px; overflow: hidden; }
+  .printing .thumb { width: 160px; height: 160px; }
+  .thumb canvas { width: 100%; height: 100%; cursor: grab; }
+  .title { font-weight: 600; font-size: 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .title[contenteditable]:focus { outline: 1px solid var(--accent); border-radius: 4px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 99px; background: var(--panel2); color: var(--dim);
+           text-transform: uppercase; letter-spacing: .6px; }
+  .badge.idea { color: var(--blue); }
+  .badge.live { color: var(--green); }
+  .meta { color: var(--dim); font-size: 13px; margin-top: 4px; }
+  .notes { margin-top: 6px; font-size: 14px; color: #cfccc5; white-space: pre-wrap; }
+  .notes:empty::before { content: "add notes…"; color: #5d6166; }
+  .notes:focus { outline: 1px solid var(--accent); border-radius: 4px; }
+  .actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  .actions button { font-size: 13px; padding: 5px 10px; white-space: nowrap; }
+  .btn-print { color: var(--green); }
+  .btn-del { color: var(--red); }
+  .empty { color: var(--dim); background: var(--panel); border-radius: var(--radius); padding: 18px; text-align: center; }
+  details summary { cursor: pointer; color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: 1.4px; font-weight: 600; margin-bottom: 10px; }
+  .done .item { opacity: .65; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--panel2); border: 1px solid var(--line);
+           padding: 10px 16px; border-radius: 8px; display: none; }
+  @media (max-width: 600px) {
+    .item, .item.printing { grid-template-columns: 72px 1fr; }
+    .handle, .pos { display: none; }
+    .thumb, .printing .thumb { width: 72px; height: 72px; }
+    .actions { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Print <span>Queue</span></h1>
+  <div class="sub" id="summary"></div>
+</header>
+<main>
+  <section class="add">
+    <label class="drop" id="drop">
+      <strong>Drop STL files here</strong>
+      or click to choose · .stl .3mf .obj .gcode .step
+      <input type="file" id="file" multiple accept=".stl,.3mf,.obj,.gcode,.step,.stp" hidden>
+      <div class="progress" id="progress"><div></div></div>
+    </label>
+    <form class="idea" id="ideaForm">
+      <input id="ideaTitle" placeholder="Idea — e.g. cable clip for the desk" autocomplete="off">
+      <textarea id="ideaNotes" placeholder="Notes, links, dimensions…"></textarea>
+      <div><button class="primary" type="submit">Add idea</button></div>
+    </form>
+  </section>
+
+  <section id="nowSection">
+    <h2>Now printing</h2>
+    <div class="list" id="now"></div>
+  </section>
+
+  <section>
+    <h2>Up next <span class="sub" style="text-transform:none;letter-spacing:0">— drag ⋮⋮ to reorder</span></h2>
+    <div class="list" id="queue"></div>
+  </section>
+
+  <section class="done">
+    <details id="doneDetails">
+      <summary>Done (<span id="doneCount">0</span>)</summary>
+      <div class="list" id="done"></div>
+    </details>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let items = [];
+let editing = false;              // pause polling while typing
+const viewers = new Map();        // id -> cached triangles
+
+// ------------------------------------------------------------ api
+async function api(method, url, body) {
+  const r = await fetch(url, { method, headers: {"Content-Type": "application/json"},
+                               body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 2600);
+}
+async function refresh() {
+  if (editing) return;
+  const fresh = await api("GET", "/api/queue");
+  const key = JSON.stringify(fresh);
+  if (key === refresh.last) return;   // nothing changed: keep previews as they are
+  refresh.last = key;
+  items = fresh;
+  render();
+}
+
+// ------------------------------------------------------------ render
+function fmtBytes(n) { return n > 1e6 ? (n/1e6).toFixed(1)+" MB" : Math.round(n/1e3)+" KB"; }
+function ago(t) {
+  const s = Date.now()/1000 - t;
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s/60) + "m ago";
+  if (s < 86400) return Math.floor(s/3600) + "h ago";
+  return Math.floor(s/86400) + "d ago";
+}
+
+function card(it, idx) {
+  const el = document.createElement("div");
+  el.className = "item " + it.status;
+  el.dataset.id = it.id;
+  const isFile = it.kind === "file";
+  const info = isFile && it.file.info;
+  const dims = info ? `${info.x} × ${info.y} × ${info.z} mm · ${info.triangles.toLocaleString()} tris` : "";
+  const meta = isFile
+      ? [it.file.name, fmtBytes(it.file.bytes), dims].filter(Boolean).join(" · ")
+      : "added " + ago(it.created_at);
+
+  if (it.status === "queued") {
+    el.innerHTML = `<div><div class="handle" draggable="true" title="drag to reorder">⋮⋮</div><div class="pos">${idx+1}</div></div>`;
+    el.querySelector(".handle").addEventListener("dragstart", e => {
+      el.classList.add("dragging"); e.dataTransfer.setData("text/plain", it.id);
+      e.dataTransfer.setDragImage(el, 20, 20);
+    });
+    el.querySelector(".handle").addEventListener("dragend", () => el.classList.remove("dragging"));
+  } else if (it.status === "done") {
+    el.innerHTML = `<div></div>`;
+  }
+  el.insertAdjacentHTML("beforeend", `
+    <div class="thumb">${isFile ? "" : "💡"}</div>
+    <div>
+      <div class="title"><span class="t" contenteditable="true" spellcheck="false"></span>
+        ${it.kind === "idea" ? '<span class="badge idea">idea</span>' : ""}
+        ${it.status === "printing" ? '<span class="badge live">printing</span>' : ""}
+      </div>
+      <div class="meta">${escapeHtml(meta)}</div>
+      <div class="notes" contenteditable="true"></div>
+    </div>
+    <div class="actions"></div>`);
+  el.querySelector(".t").textContent = it.title;
+  el.querySelector(".notes").textContent = it.notes || "";
+
+  // inline editing
+  for (const [sel, key] of [[".t", "title"], [".notes", "notes"]]) {
+    const f = el.querySelector(sel);
+    f.addEventListener("focus", () => editing = true);
+    f.addEventListener("blur", async () => {
+      editing = false;
+      const v = f.innerText.trim();
+      if (v !== (it[key] || "") && (key !== "title" || v)) {
+        it[key] = v; await api("PATCH", `/api/items/${it.id}`, {[key]: v}); toast("Saved");
+      }
+    });
+    f.addEventListener("keydown", e => { if (e.key === "Enter" && key === "title") { e.preventDefault(); f.blur(); } });
+  }
+
+  const act = el.querySelector(".actions");
+  const btn = (label, cls, fn) => { const b = document.createElement("button"); b.textContent = label;
+                                    if (cls) b.className = cls; b.onclick = fn; act.append(b); };
+  const setStatus = s => api("PATCH", `/api/items/${it.id}`, {status: s}).then(refresh);
+  if (it.status === "queued") {
+    if (isFile) btn("▶ Print now", "btn-print", () => setStatus("printing"));
+    if (idx > 0) btn("↑ Top", "", () => moveTo(it.id, 0));
+    btn("✓ Done", "", () => setStatus("done"));
+  } else if (it.status === "printing") {
+    btn("✓ Finished", "btn-print", () => setStatus("done"));
+    btn("↩ Back to queue", "", () => setStatus("queued"));
+  } else {
+    btn("↻ Print again", "", () => setStatus("queued"));
+  }
+  if (isFile) btn("⬇ Download", "", () => location.href = `/files/${it.id}`);
+  btn("✕ Remove", "btn-del", async () => {
+    if (!confirm(`Remove "${it.title}"?`)) return;
+    await api("DELETE", `/api/items/${it.id}`); refresh();
+  });
+
+  if (isFile && it.file.name.toLowerCase().endsWith(".stl")) mountViewer(el.querySelector(".thumb"), it);
+  else if (isFile) el.querySelector(".thumb").textContent = "📦";
+  return el;
+}
+
+function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function render() {
+  const now = items.filter(i => i.status === "printing");
+  const queued = items.filter(i => i.status === "queued");
+  const done = items.filter(i => i.status === "done").sort((a, b) => (b.done_at||0) - (a.done_at||0));
+
+  $("#now").replaceChildren(...(now.length ? now.map(card)
+      : [Object.assign(document.createElement("div"), {className: "empty", textContent: "Printer idle — hit ▶ Print now on something below."})]));
+  $("#queue").replaceChildren(...(queued.length ? queued.map(card)
+      : [Object.assign(document.createElement("div"), {className: "empty", textContent: "Nothing queued. Drop an STL or add an idea above."})]));
+  $("#done").replaceChildren(...done.map(card));
+  $("#doneCount").textContent = done.length;
+  const files = queued.filter(i => i.kind === "file").length;
+  $("#summary").textContent = `${files} file${files === 1 ? "" : "s"} · ${queued.length - files} idea${queued.length - files === 1 ? "" : "s"} waiting`;
+}
+
+// ------------------------------------------------------------ reorder
+const queueEl = $("#queue");
+queueEl.addEventListener("dragover", e => {
+  e.preventDefault();
+  const after = [...queueEl.querySelectorAll(".item:not(.dragging)")]
+      .find(c => e.clientY < c.getBoundingClientRect().top + c.offsetHeight / 2);
+  queueEl.querySelectorAll(".drop-before").forEach(c => c.classList.remove("drop-before"));
+  if (after) after.classList.add("drop-before");
+});
+queueEl.addEventListener("drop", e => {
+  e.preventDefault();
+  const id = e.dataTransfer.getData("text/plain");
+  const cards = [...queueEl.querySelectorAll(".item")];
+  const target = queueEl.querySelector(".drop-before");
+  target && target.classList.remove("drop-before");
+  const ids = cards.map(c => c.dataset.id).filter(x => x !== id);
+  const pos = target ? ids.indexOf(target.dataset.id) : ids.length;
+  ids.splice(pos, 0, id);
+  saveOrder(ids);
+});
+function moveTo(id, pos) {
+  const ids = items.filter(i => i.status === "queued").map(i => i.id).filter(x => x !== id);
+  ids.splice(pos, 0, id);
+  saveOrder(ids);
+}
+async function saveOrder(queuedIds) {
+  const others = items.filter(i => i.status !== "queued").map(i => i.id);
+  await api("POST", "/api/reorder", {ids: [...others, ...queuedIds]});
+  refresh();
+}
+
+// ------------------------------------------------------------ add
+const drop = $("#drop");
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => {
+  if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); drop.classList.add("over"); }
+}));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, () => drop.classList.remove("over")));
+drop.addEventListener("drop", e => { e.preventDefault(); uploadAll(e.dataTransfer.files); });
+$("#file").addEventListener("change", e => { uploadAll(e.target.files); e.target.value = ""; });
+// also accept files dropped anywhere on the page
+document.addEventListener("dragover", e => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); });
+document.addEventListener("drop", e => { if (e.dataTransfer.files.length && !drop.contains(e.target)) { e.preventDefault(); uploadAll(e.dataTransfer.files); } });
+
+async function uploadAll(files) {
+  for (const f of files) {
+    try { await upload(f); toast(`Queued ${f.name}`); }
+    catch (err) { toast(`${f.name}: ${err.message}`); }
+  }
+  refresh();
+}
+function upload(file) {
+  return new Promise((resolve, reject) => {
+    const bar = $("#progress"); bar.style.display = "block";
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/upload");
+    xhr.setRequestHeader("X-Filename", encodeURIComponent(file.name));
+    xhr.upload.onprogress = e => bar.firstElementChild.style.width = (100 * e.loaded / e.total) + "%";
+    xhr.onload = () => {
+      bar.style.display = "none"; bar.firstElementChild.style.width = 0;
+      const j = JSON.parse(xhr.responseText || "{}");
+      xhr.status < 300 ? resolve(j) : reject(new Error(j.error || xhr.statusText));
+    };
+    xhr.onerror = () => { bar.style.display = "none"; reject(new Error("network error")); };
+    xhr.send(file);
+  });
+}
+$("#ideaForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const title = $("#ideaTitle").value.trim();
+  if (!title) return $("#ideaTitle").focus();
+  await api("POST", "/api/idea", {title, notes: $("#ideaNotes").value});
+  $("#ideaTitle").value = ""; $("#ideaNotes").value = "";
+  toast("Idea added"); refresh();
+});
+
+// ------------------------------------------------------------ STL preview (no libraries)
+async function loadTris(it) {
+  if (viewers.has(it.id)) return viewers.get(it.id);
+  const p = fetch(`/files/${it.id}`).then(r => r.arrayBuffer()).then(parseSTL);
+  viewers.set(it.id, p);
+  return p;
+}
+function parseSTL(buf) {
+  const dv = new DataView(buf);
+  let tris = [];
+  const n = buf.byteLength >= 84 ? dv.getUint32(80, true) : 0;
+  if (84 + n * 50 === buf.byteLength) {
+    const step = Math.max(1, Math.ceil(n / 60000));      // cap work on huge meshes
+    for (let i = 0; i < n; i += step) {
+      const o = 84 + i * 50 + 12, t = new Float32Array(9);
+      for (let k = 0; k < 9; k++) t[k] = dv.getFloat32(o + k * 4, true);
+      tris.push(t);
+    }
+  } else {
+    const txt = new TextDecoder().decode(buf);
+    const v = [...txt.matchAll(/vertex\s+(\S+)\s+(\S+)\s+(\S+)/g)].map(m => [+m[1], +m[2], +m[3]]);
+    for (let i = 0; i + 2 < v.length; i += 3) tris.push(Float32Array.from([...v[i], ...v[i+1], ...v[i+2]]));
+  }
+  // center + scale to unit size
+  let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (const t of tris) for (let k = 0; k < 9; k++) { const a = k % 3; mn[a] = Math.min(mn[a], t[k]); mx[a] = Math.max(mx[a], t[k]); }
+  const c = mn.map((m, a) => (m + mx[a]) / 2), s = 2 / Math.max(...mx.map((m, a) => m - mn[a]), 1e-6);
+  for (const t of tris) for (let k = 0; k < 9; k++) t[k] = (t[k] - c[k % 3]) * s;
+  return tris;
+}
+function mountViewer(box, it) {
+  const cv = document.createElement("canvas");
+  box.append(cv);
+  let yaw = -0.6, pitch = 0.5, tris = null;
+  const draw = () => {
+    if (!tris) return;
+    const W = cv.width = cv.clientWidth * devicePixelRatio, H = cv.height = cv.clientHeight * devicePixelRatio;
+    const g = cv.getContext("2d"); g.clearRect(0, 0, W, H);
+    const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    const sc = Math.min(W, H) * 0.36;
+    const proj = [];
+    for (const t of tris) {
+      const p = [];
+      for (let k = 0; k < 9; k += 3) {
+        // STL is Z-up: rotate around Z (yaw), then tilt (pitch)
+        const x = t[k], y = t[k+1], z = t[k+2];
+        const x1 = x * cy - y * sy, y1 = x * sy + y * cy;
+        const y2 = y1 * cp - z * sp, z2 = y1 * sp + z * cp;
+        p.push(x1, z2, y2);   // screen x, screen up, depth
+      }
+      const ux = p[3]-p[0], uy = p[4]-p[1], uz = p[5]-p[2], vx = p[6]-p[0], vy = p[7]-p[1], vz = p[8]-p[2];
+      let nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx;
+      const len = Math.hypot(nx, ny, nz) || 1;
+      if (nz / len > 0.02) continue;                 // back-face cull (facing away)
+      const light = Math.max(0, (-nx * 0.3 + ny * 0.6 - nz * 0.75) / len);
+      proj.push([p, (p[2] + p[5] + p[8]) / 3, light]);
+    }
+    proj.sort((a, b) => b[1] - a[1]);
+    for (const [p, , l] of proj) {
+      const v = 70 + l * 175;
+      g.fillStyle = `rgb(${v}, ${v * 0.62 + 20}, ${v * 0.35 + 10})`;
+      g.beginPath();
+      g.moveTo(W/2 + p[0]*sc, H/2 - p[1]*sc);
+      g.lineTo(W/2 + p[3]*sc, H/2 - p[4]*sc);
+      g.lineTo(W/2 + p[6]*sc, H/2 - p[7]*sc);
+      g.closePath(); g.fill();
+    }
+  };
+  // lazy-load when visible
+  new IntersectionObserver((ents, obs) => {
+    if (ents.some(e => e.isIntersecting)) {
+      obs.disconnect();
+      loadTris(it).then(t => { tris = t; draw(); }).catch(() => box.textContent = "📦");
+    }
+  }).observe(box);
+  let drag = null;
+  cv.addEventListener("pointerdown", e => { drag = [e.clientX, e.clientY, yaw, pitch]; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener("pointermove", e => {
+    if (!drag) return;
+    yaw = drag[2] + (e.clientX - drag[0]) * 0.012;
+    pitch = Math.max(-1.5, Math.min(1.5, drag[3] + (e.clientY - drag[1]) * 0.012));
+    draw();
+  });
+  cv.addEventListener("pointerup", () => drag = null);
+}
+
+refresh();
+setInterval(refresh, 5000);   // keep phone + laptop in sync
+</script>
+</body>
+</html>
