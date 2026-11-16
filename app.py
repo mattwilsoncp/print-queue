@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print Queue — a tiny local web app for lining up 3D prints.
+"""3D Printer Queue — a tiny local web app for lining up 3D prints.
 
 Drop STL files or jot down ideas while the printer is busy, reorder them,
 and mark them printing / done.  Standard library only: no installs needed.
@@ -290,10 +290,10 @@ def main():
     args = ap.parse_args()
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     srv = ThreadingHTTPServer((args.host, args.port), Handler)
-    print(f"Print Queue running:  http://localhost:{args.port}")
+    print(f"3D Printer Queue running:  http://localhost:{args.port}")
     ip = lan_ip()
     if ip and args.host == "0.0.0.0":
-        print(f"From your phone:      http://{ip}:{args.port}")
+        print(f"From your phone:           http://{ip}:{args.port}")
     print("Ctrl+C to stop.")
     try:
         srv.serve_forever()

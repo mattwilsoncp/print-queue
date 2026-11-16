@@ -1,13 +1,13 @@
-# 🖨️ Print Queue
+# 🖨️ 3D Printer Queue
 
 **A tiny local web page for lining up 3D prints while your printer is busy.**
 
-The printer's halfway through a 9-hour job and you've just finished the next model in Blender, or you're out in the garage and think *"I should print a cable clip for that"*. Print Queue gives those a place to go: drop in the STL or jot down the idea from your laptop or phone, and work through the list when the bed is clear.
+The printer's halfway through a 9-hour job and you've just finished the next model in Blender, or you're out in the garage and think *"I should print a cable clip for that"*. 3D Printer Queue gives those a place to go: drop in the STL or jot down the idea from your laptop or phone, and work through the list when the bed is clear.
 
 No accounts, no cloud, no `pip install`. Just one Python file and one HTML page.
 
 <p align="center">
-  <img src="docs/queue.png" alt="Print Queue: a printing job pinned at the top with a shaded 3D preview, and a reorderable list of STL files and ideas below" width="820">
+  <img src="docs/queue.png" alt="3D Printer Queue: a printing job pinned at the top with a shaded 3D preview, and a reorderable list of STL files and ideas below" width="820">
 </p>
 
 ---
@@ -36,8 +36,8 @@ python3 app.py
 ```
 
 ```
-Print Queue running:  http://localhost:8765
-From your phone:      http://192.168.1.42:8765
+3D Printer Queue running:  http://localhost:8765
+From your phone:           http://192.168.1.42:8765
 Ctrl+C to stop.
 ```
 
@@ -57,7 +57,7 @@ python3 app.py --host 127.0.0.1     # keep it on this computer only
 <table>
 <tr>
 <td width="38%" valign="top">
-<img src="docs/mobile.png" alt="Print Queue on a phone: the same queue stacked in one column with large touch buttons">
+<img src="docs/mobile.png" alt="3D Printer Queue on a phone: the same queue stacked in one column with large touch buttons">
 </td>
 <td valign="top">
 
@@ -123,11 +123,11 @@ curl -X POST http://localhost:8765/api/upload \
 - [ ] Talk to the printer (Bambu / OctoPrint / Moonraker) for live progress and auto-finish
 - [ ] Material & color tags with filters
 - [ ] Estimated print time and filament from sliced G-code
-- [ ] "Send to Print Queue" button straight from Blender
+- [ ] "Send to 3D Printer Queue" button straight from Blender
 
 ## ⚠️ A note on security
 
-Print Queue has no login. By default it listens on your whole local network so your phone can reach it, which is fine at home. Don't expose it to the internet. Use `--host 127.0.0.1` if you're on a network you don't trust.
+3D Printer Queue has no login. By default it listens on your whole local network so your phone can reach it, which is fine at home. Don't expose it to the internet. Use `--host 127.0.0.1` if you're on a network you don't trust.
 
 ---
 
