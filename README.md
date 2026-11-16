@@ -6,6 +6,10 @@ The printer's halfway through a 9-hour job and you've just finished the next mod
 
 No accounts, no cloud, no `pip install`. Just one Python file and one HTML page.
 
+<p align="center">
+  <img src="docs/queue.png" alt="Print Queue: a printing job pinned at the top with a shaded 3D preview, and a reorderable list of STL files and ideas below" width="820">
+</p>
+
 ---
 
 ## ✨ Features
@@ -50,19 +54,24 @@ python3 app.py --host 127.0.0.1     # keep it on this computer only
 
 ## 🧭 How it works
 
-```
-          ┌──────────── Print Queue ─────────────┐
-          │  [ drop STL here ]   [ + add idea ]   │
-          ├───────────────────────────────────────┤
- NOW      │ 🟢 dewalt_router_adapter.stl  ✓ Finished
-          ├───────────────────────────────────────┤
- UP NEXT  │ ⋮⋮ 1  powerblock_mount.stl   ▶ Print now
-          │ ⋮⋮ 2  💡 cable clip for desk  ✓ Done
-          │ ⋮⋮ 3  febreze_holder.3mf     ▶ Print now
-          ├───────────────────────────────────────┤
- DONE ▸   │ (collapsed history)                   │
-          └───────────────────────────────────────┘
-```
+<table>
+<tr>
+<td width="38%" valign="top">
+<img src="docs/mobile.png" alt="Print Queue on a phone: the same queue stacked in one column with large touch buttons">
+</td>
+<td valign="top">
+
+**On your phone.** Same queue, same data. Add an idea from the garage, and it's on your laptop five seconds later.
+
+**Finished prints** collect in a Done list at the bottom, ready to send back to the queue:
+
+<img src="docs/done.png" alt="The Done list showing a finished doll hand with a Print again button">
+
+**Previews you can spin.** Drag any thumbnail to rotate the model. It's shaded with a tiny painter's-algorithm renderer in plain canvas, and huge meshes are sampled so it stays snappy.
+
+</td>
+</tr>
+</table>
 
 Each item moves through three states:
 
@@ -78,6 +87,7 @@ queued ──▶ printing ──▶ done
 print-queue/
 ├── app.py              # the whole server (stdlib http.server)
 ├── static/index.html   # the whole UI (vanilla JS + CSS)
+├── docs/               # README screenshots
 └── data/               # created on first run, git-ignored
     ├── queue.json      # the queue itself, human-readable
     ├── uploads/        # your model files

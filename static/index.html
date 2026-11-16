@@ -75,7 +75,7 @@
            padding: 10px 16px; border-radius: 8px; display: none; }
   @media (max-width: 600px) {
     .item, .item.printing { grid-template-columns: 72px 1fr; }
-    .handle, .pos { display: none; }
+    .grip { display: none; }
     .thumb, .printing .thumb { width: 72px; height: 72px; }
     .actions { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; }
   }
@@ -170,14 +170,14 @@ function card(it, idx) {
       : "added " + ago(it.created_at);
 
   if (it.status === "queued") {
-    el.innerHTML = `<div><div class="handle" draggable="true" title="drag to reorder">⋮⋮</div><div class="pos">${idx+1}</div></div>`;
+    el.innerHTML = `<div class="grip"><div class="handle" draggable="true" title="drag to reorder">⋮⋮</div><div class="pos">${idx+1}</div></div>`;
     el.querySelector(".handle").addEventListener("dragstart", e => {
       el.classList.add("dragging"); e.dataTransfer.setData("text/plain", it.id);
       e.dataTransfer.setDragImage(el, 20, 20);
     });
     el.querySelector(".handle").addEventListener("dragend", () => el.classList.remove("dragging"));
   } else if (it.status === "done") {
-    el.innerHTML = `<div></div>`;
+    el.innerHTML = `<div class="grip"></div>`;
   }
   el.insertAdjacentHTML("beforeend", `
     <div class="thumb">${isFile ? "" : "💡"}</div>
@@ -361,7 +361,7 @@ function mountViewer(box, it) {
   const draw = () => {
     if (!tris) return;
     const W = cv.width = cv.clientWidth * devicePixelRatio, H = cv.height = cv.clientHeight * devicePixelRatio;
-    const g = cv.getContext("2d"); g.clearRect(0, 0, W, H);
+    const g = cv.getContext("2d"); g.clearRect(0, 0, W, H); g.lineWidth = 0.75; g.lineJoin = "round";
     const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
     const sc = Math.min(W, H) * 0.36;
     const proj = [];
@@ -377,19 +377,19 @@ function mountViewer(box, it) {
       const ux = p[3]-p[0], uy = p[4]-p[1], uz = p[5]-p[2], vx = p[6]-p[0], vy = p[7]-p[1], vz = p[8]-p[2];
       let nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx;
       const len = Math.hypot(nx, ny, nz) || 1;
-      if (nz / len > 0.02) continue;                 // back-face cull (facing away)
-      const light = Math.max(0, (-nx * 0.3 + ny * 0.6 - nz * 0.75) / len);
+      if (nz / len < -0.02) continue;                 // back-face cull (facing away)
+      const light = Math.max(0, (nx * 0.35 - ny * 0.6 + nz * 0.72) / len);   // normals point inward after the axis swap
       proj.push([p, (p[2] + p[5] + p[8]) / 3, light]);
     }
     proj.sort((a, b) => b[1] - a[1]);
     for (const [p, , l] of proj) {
       const v = 70 + l * 175;
-      g.fillStyle = `rgb(${v}, ${v * 0.62 + 20}, ${v * 0.35 + 10})`;
+      g.fillStyle = g.strokeStyle = `rgb(${v}, ${v * 0.62 + 20}, ${v * 0.35 + 10})`;
       g.beginPath();
       g.moveTo(W/2 + p[0]*sc, H/2 - p[1]*sc);
       g.lineTo(W/2 + p[3]*sc, H/2 - p[4]*sc);
       g.lineTo(W/2 + p[6]*sc, H/2 - p[7]*sc);
-      g.closePath(); g.fill();
+      g.closePath(); g.fill(); g.stroke();   // stroke hides hairline seams
     }
   };
   // lazy-load when visible
